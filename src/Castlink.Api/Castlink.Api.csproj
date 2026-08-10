@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <UserSecretsId>a361c30f-4bf3-4282-8187-2eb72de19621</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.29">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Castlink.Infrastructure\Castlink.Infrastructure.csproj" />
+    <ProjectReference Include="..\Castlink.Application\Castlink.Application.csproj" />
+    <ProjectReference Include="..\Castlink.Shared\Castlink.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

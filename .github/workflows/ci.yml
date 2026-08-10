@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore castlink.sln
+
+      - name: Build
+        run: dotnet build castlink.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test castlink.sln --no-build --configuration Release
+
+      # Cheap guard against an accidentally-committed TMDB key. Real secret
+      # scanning belongs in a dedicated tool; this just catches the obvious case.
+      - name: Check for committed secrets
+        run: |
+          if git grep -inE '"?(api[_-]?key|apikey)"?\s*[:=]\s*"[a-z0-9]{20,}"' -- . ':!*.md'; then
+            echo "::error::Possible committed API key found above — remove it and use user-secrets/env vars instead."
+            exit 1
+          fi

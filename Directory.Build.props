@@ -1,0 +1,16 @@
+<Project>
+
+  <!--
+    Centralised build settings for every project in the solution.
+    Individual .csproj files should not repeat these unless they need to
+    deviate for a specific reason (and should comment why if so).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+</Project>

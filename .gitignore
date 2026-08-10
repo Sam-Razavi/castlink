@@ -1,0 +1,38 @@
+# Build output
+bin/
+obj/
+out/
+
+# Rider / Visual Studio / VS Code
+.vs/
+.vscode/
+*.user
+*.suo
+.idea/
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+*.coverage
+*.coveragexml
+
+# Blazor WASM published assets
+wwwroot/dist/
+
+# User secrets and local overrides — never commit real config
+appsettings.*.Development.json
+appsettings.Local.json
+*.env
+.env
+.env.*
+
+# Local Postgres/Redis data volumes if ever bind-mounted
+docker/data/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# dotnet-tools / EF migrations bundle output
+*.dll
+*.pdb
