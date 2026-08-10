@@ -8,8 +8,9 @@ Architecture, data model, API surface, TMDB constraints, and the phased build pl
 [`docs/PLAN.md`](docs/PLAN.md). This is a portfolio project — see that document for the reasoning
 behind each design decision, not just the decision itself.
 
-**Status:** Phase 0 (Foundation) — solution skeleton, local dev services, and CI are in place. No
-game logic yet; that starts in Phase 1.
+**Status:** Phase 1 (Data model + ingestion) — EF Core entities/migration, a rate-limited TMDB
+client, and an idempotent ingestion pipeline (`/discover` seeding, `/movie/changes` incremental
+sync, staged bulk upsert) are in place. No shortest-path search or UI yet; those start in Phase 2.
 
 ## Stack
 
@@ -45,15 +46,41 @@ tests/
    dotnet user-secrets set "Tmdb:ApiKey" "<your-key>" --project src/Castlink.Api
    dotnet user-secrets set "Tmdb:ApiKey" "<your-key>" --project src/Castlink.Ingestion
    ```
-3. Build and test:
+3. Apply the database schema (needs the `dotnet-ef` tool: `dotnet tool install --global dotnet-ef --version 8.0.11`):
+   ```bash
+   dotnet ef database update --project src/Castlink.Infrastructure --startup-project src/Castlink.Infrastructure
+   ```
+4. Build and test:
    ```bash
    dotnet build castlink.sln
    dotnet test castlink.sln
    ```
-4. Run the API (serves `/healthz` for now; the Blazor client and real endpoints land in later phases):
+   The ingestion idempotency tests (`Castlink.Infrastructure.Tests/Persistence`) spin up their own
+   throwaway Postgres via [Testcontainers](https://dotnet.testcontainers.org/) — they need Docker
+   running but not the `docker compose` instance from step 1.
+5. Run the API (serves `/healthz` for now; the Blazor client and real endpoints land in later phases):
    ```bash
    dotnet run --project src/Castlink.Api
    ```
+
+## Running a real TMDB ingestion
+
+`Castlink.Ingestion` is a run-to-completion batch job, not a long-lived service — it does one full
+seed or one incremental sync and exits. Needs steps 1–3 above done first, plus a real TMDB API key
+(step 2).
+
+- **Incremental sync** (the default — fetches whatever changed since the last run):
+  ```bash
+  dotnet run --project src/Castlink.Ingestion
+  ```
+- **Full seed** (first run only — walks `/discover/movie` year by year from 1970 to now,
+  `vote_count >= 200`; expect this to take a while, see docs/PLAN.md Phase 1's open items on
+  runtime):
+  ```bash
+  dotnet run --project src/Castlink.Ingestion -- --Ingestion:Mode=FullSeed
+  ```
+  It's safe to re-run after a crash or Ctrl-C — progress is checkpointed per release year in
+  `sync_state`, and every write is an idempotent upsert (see `PostgresIngestionWriter`).
 
 ## TMDB attribution
 
