@@ -8,9 +8,9 @@ Architecture, data model, API surface, TMDB constraints, and the phased build pl
 [`docs/PLAN.md`](docs/PLAN.md). This is a portfolio project — see that document for the reasoning
 behind each design decision, not just the decision itself.
 
-**Status:** Phase 1 (Data model + ingestion) — EF Core entities/migration, a rate-limited TMDB
-client, and an idempotent ingestion pipeline (`/discover` seeding, `/movie/changes` incremental
-sync, staged bulk upsert) are in place. No shortest-path search or UI yet; those start in Phase 2.
+**Status:** Phase 2 (Shortest path) — an in-memory CSR graph loaded from `credits` at API startup,
+bidirectional BFS with deterministic tie-breaking, and `POST /api/path`. No Blazor UI yet; that
+starts in Phase 3.
 
 ## Stack
 

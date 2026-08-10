@@ -1,5 +1,7 @@
+using Castlink.Application.Graph;
 using Castlink.Application.Ingestion;
 using Castlink.Infrastructure.Configuration;
+using Castlink.Infrastructure.Graph;
 using Castlink.Infrastructure.Ingestion;
 using Castlink.Infrastructure.Persistence;
 using Castlink.Infrastructure.Tmdb;
@@ -34,7 +36,14 @@ public static class ServiceCollectionExtensions
             .AddOptions<TmdbOptions>()
             .Bind(configuration.GetSection(TmdbOptions.SectionName));
 
-        var connectionString = configuration.GetConnectionString("Postgres") ?? LocalDevConnectionStringFallback;
+        var configuredConnectionString = configuration.GetConnectionString("Postgres");
+        // GetConnectionString returns "" (not null) when appsettings.json defines the key with an
+        // empty placeholder value — which it does by design (see the appsettings.json comment on
+        // this key) — so a plain `?? fallback` never actually triggers. Treat blank the same as
+        // absent, or the local-dev fallback below is dead code.
+        var connectionString = string.IsNullOrWhiteSpace(configuredConnectionString)
+            ? LocalDevConnectionStringFallback
+            : configuredConnectionString;
         var dataSource = new NpgsqlDataSourceBuilder(connectionString).Build();
         services.AddSingleton(dataSource);
 
@@ -56,6 +65,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISyncStateStore, SyncStateStore>();
         services.AddScoped<IIngestionRunTracker, EfIngestionRunTracker>();
         services.AddScoped<IngestionService>();
+
+        services.AddScoped<IGraphSnapshotSource, PostgresGraphSnapshotSource>();
+        services.AddScoped<IPathEnrichmentRepository, EfPathEnrichmentRepository>();
+        services.AddSingleton<GraphSnapshotProvider>();
+        services.AddSingleton<IPathFinder, BidirectionalPathFinder>();
 
         return services;
     }

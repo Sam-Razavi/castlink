@@ -1,3 +1,4 @@
+using Castlink.Application.Graph;
 using Castlink.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,17 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// Load the actor/film graph into memory once, at startup (see docs/PLAN.md Phase 2) — blocks
+// startup until it's ready rather than serving requests against an empty graph. At ~1M credits
+// this is a one-time cost of maybe tens of seconds, not something worth backgrounding for v1.
+using (var startupScope = app.Services.CreateScope())
+{
+    var graphSource = startupScope.ServiceProvider.GetRequiredService<IGraphSnapshotSource>();
+    var graphSnapshotProvider = startupScope.ServiceProvider.GetRequiredService<GraphSnapshotProvider>();
+    var snapshot = await InMemoryGraphSnapshot.BuildAsync(graphSource.StreamEdgesAsync(CancellationToken.None));
+    graphSnapshotProvider.SetSnapshot(snapshot);
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
