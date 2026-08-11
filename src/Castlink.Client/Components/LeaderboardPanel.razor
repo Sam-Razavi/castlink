@@ -1,0 +1,72 @@
+@* Live rankings for one day's challenge: paints the current standings on load via a plain GET,
+   then joins a SignalR group for that date and re-renders on every push from the server (see
+   docs/PLAN.md Phase 4 — "SignalR: HubConnectionBuilder with WithAutomaticReconnect(); dispose
+   connections via IAsyncDisposable or they leak across navigations."). *@
+@using Castlink.Client.Services
+@using Castlink.Shared
+@using Microsoft.AspNetCore.SignalR.Client
+@inject DailyApiClient Api
+@inject NavigationManager NavigationManager
+@implements IAsyncDisposable
+
+<div class="leaderboard-panel">
+    <h2>Leaderboard — @Date.ToString("MMMM d")</h2>
+
+    @if (_entries.Count == 0)
+    {
+        <p class="leaderboard-panel__empty">No submissions yet today — be the first.</p>
+    }
+    else
+    {
+        <ol class="leaderboard-panel__list">
+            @foreach (var entry in _entries)
+            {
+                <li @key="entry.Rank" class="leaderboard-panel__row">
+                    <span class="leaderboard-panel__rank">#@entry.Rank</span>
+                    <span class="leaderboard-panel__name">@entry.DisplayName</span>
+                    <span class="leaderboard-panel__score">@entry.Score</span>
+                </li>
+            }
+        </ol>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public DateOnly Date { get; set; }
+
+    private const int Top = 20;
+
+    private List<LeaderboardEntryDto> _entries = [];
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _entries = [.. await Api.GetLeaderboardAsync(Date, Top, CancellationToken.None)];
+
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(new Uri(new Uri(NavigationManager.BaseUri), "hubs/leaderboard"))
+            .WithAutomaticReconnect()
+            .Build();
+
+        // Fires on a SignalR-managed background thread, outside Blazor's synchronization context —
+        // same InvokeAsync/StateHasChanged marshaling requirement as the debounced search callback
+        // in ActorSearchBox, just triggered by a server push instead of a timer.
+        _hubConnection.On<List<LeaderboardEntryDto>>("LeaderboardUpdated", entries => InvokeAsync(() =>
+        {
+            _entries = entries;
+            StateHasChanged();
+        }));
+
+        await _hubConnection.StartAsync();
+        await _hubConnection.InvokeAsync("JoinDaily", Date.ToString("yyyy-MM-dd"));
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+}

@@ -12,10 +12,12 @@ public sealed class PeopleController : ControllerBase
     private const int MaxLimit = 50;
 
     private readonly IPersonSearchRepository _searchRepository;
+    private readonly ISharedFilmsRepository _sharedFilmsRepository;
 
-    public PeopleController(IPersonSearchRepository searchRepository)
+    public PeopleController(IPersonSearchRepository searchRepository, ISharedFilmsRepository sharedFilmsRepository)
     {
         _searchRepository = searchRepository;
+        _sharedFilmsRepository = sharedFilmsRepository;
     }
 
     [HttpGet("search")]
@@ -34,5 +36,15 @@ public sealed class PeopleController : ControllerBase
         return Ok(results
             .Select(result => new PersonSearchResultDto(result.Id, result.Name, result.ProfilePath, result.Popularity))
             .ToList());
+    }
+
+    // Backs the daily-challenge chain-builder UI (Phase 4): the player picks the next actor, then
+    // this resolves which real film actually connects them, so the submission's filmId is
+    // something the player genuinely chose rather than something the server silently inferred.
+    [HttpGet("{fromId:int}/shared-films/{toId:int}")]
+    public async Task<ActionResult<IReadOnlyList<SharedFilmDto>>> SharedFilms(int fromId, int toId, CancellationToken cancellationToken)
+    {
+        var films = await _sharedFilmsRepository.GetSharedFilmsAsync(fromId, toId, cancellationToken);
+        return Ok(films.Select(film => new SharedFilmDto(film.Id, film.Title, film.PosterPath)).ToList());
     }
 }

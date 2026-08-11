@@ -1,0 +1,136 @@
+.tagline {
+    color: #555;
+    margin-top: -0.5rem;
+}
+
+.error-message {
+    color: #b00020;
+    margin-top: 1rem;
+}
+
+.daily-register {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: 320px;
+    margin: 1.5rem 0;
+}
+
+.daily-register input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.daily-register button,
+.daily-chain-builder button,
+.daily-film-choices button {
+    padding: 0.6rem 1.2rem;
+    font-size: 1rem;
+    border: none;
+    border-radius: 4px;
+    background: #2b6cb0;
+    color: white;
+    cursor: pointer;
+    align-self: flex-start;
+}
+
+.daily-register button:disabled,
+.daily-chain-builder button:disabled {
+    background: #aac2dd;
+    cursor: not-allowed;
+}
+
+.daily-chain-builder {
+    margin: 1.5rem 0;
+}
+
+.daily-chain {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    padding-left: 0;
+    list-style: none;
+    margin: 1rem 0;
+}
+
+.daily-chain__step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    width: 90px;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.daily-chain__step img {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.daily-chain__undo {
+    margin-top: 0.75rem;
+    background: none !important;
+    color: #2b6cb0;
+    border: 1px solid #2b6cb0 !important;
+}
+
+.daily-film-choices {
+    margin-top: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.daily-film-choices button {
+    align-self: auto;
+}
+
+.result {
+    margin-top: 2rem;
+}
+
+.result__chain {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding-left: 0;
+    list-style: none;
+}
+
+.result__link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.result__person,
+.result__film {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.35rem;
+    width: 96px;
+    text-align: center;
+    font-size: 0.85rem;
+}
+
+.result__person img {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.result__film img {
+    width: 64px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 4px;
+}

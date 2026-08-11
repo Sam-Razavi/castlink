@@ -9,5 +9,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddScoped<CastlinkApiClient>();
+builder.Services.AddScoped<DailyApiClient>();
+builder.Services.AddScoped<PlayerTokenService>();
 
 await builder.Build().RunAsync();

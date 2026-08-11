@@ -50,6 +50,88 @@ namespace Castlink.Infrastructure.Migrations
                     b.ToTable("credits", (string)null);
                 });
 
+            modelBuilder.Entity("Castlink.Domain.DailyChallenge", b =>
+                {
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<string>("CanonicalPath")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("canonical_path");
+
+                    b.Property<int>("FromPersonId")
+                        .HasColumnType("integer")
+                        .HasColumnName("from_person_id");
+
+                    b.Property<DateTimeOffset>("GeneratedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("generated_at");
+
+                    b.Property<int>("OptimalLength")
+                        .HasColumnType("integer")
+                        .HasColumnName("optimal_length");
+
+                    b.Property<int>("ToPersonId")
+                        .HasColumnType("integer")
+                        .HasColumnName("to_person_id");
+
+                    b.HasKey("Date");
+
+                    b.HasIndex("FromPersonId");
+
+                    b.HasIndex("ToPersonId");
+
+                    b.ToTable("daily_challenges", (string)null);
+                });
+
+            modelBuilder.Entity("Castlink.Domain.DailySubmission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasColumnName("date");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("path");
+
+                    b.Property<int>("PathLength")
+                        .HasColumnType("integer")
+                        .HasColumnName("path_length");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("player_id");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer")
+                        .HasColumnName("score");
+
+                    b.Property<DateTimeOffset>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("submitted_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.HasIndex("Date", "PlayerId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_daily_submissions_date_player");
+
+                    b.ToTable("daily_submissions", (string)null);
+                });
+
             modelBuilder.Entity("Castlink.Domain.Film", b =>
                 {
                     b.Property<int>("Id")
@@ -174,6 +256,27 @@ namespace Castlink.Infrastructure.Migrations
                     b.ToTable("people", (string)null);
                 });
 
+            modelBuilder.Entity("Castlink.Domain.Player", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("display_name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("players", (string)null);
+                });
+
             modelBuilder.Entity("Castlink.Domain.SyncState", b =>
                 {
                     b.Property<string>("Key")
@@ -207,6 +310,36 @@ namespace Castlink.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("PersonId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Castlink.Domain.DailyChallenge", b =>
+                {
+                    b.HasOne("Castlink.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("FromPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Castlink.Domain.Person", null)
+                        .WithMany()
+                        .HasForeignKey("ToPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Castlink.Domain.DailySubmission", b =>
+                {
+                    b.HasOne("Castlink.Domain.DailyChallenge", null)
+                        .WithMany()
+                        .HasForeignKey("Date")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Castlink.Domain.Player", null)
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 #pragma warning restore 612, 618

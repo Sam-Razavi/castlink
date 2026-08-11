@@ -1,0 +1,335 @@
+@page "/daily"
+@using System.Text.Json
+@using Castlink.Client.Components
+@using Castlink.Client.Services
+@using Castlink.Client.Support
+@using Castlink.Shared
+@inject DailyApiClient Api
+@inject PlayerTokenService PlayerTokenService
+
+<PageTitle>castlink — daily challenge</PageTitle>
+
+<h1>Daily Challenge</h1>
+
+@if (_loadError is not null)
+{
+    <p class="error-message">@_loadError</p>
+}
+else if (_challenge is null)
+{
+    <p>Loading today's challenge…</p>
+}
+else
+{
+    <p class="tagline">
+        Connect <strong>@_challenge.FromPerson.Name</strong> to <strong>@_challenge.ToPerson.Name</strong> —
+        pick actors who share a film, one hop at a time. You get one graded attempt per day.
+    </p>
+
+    @if (_needsDisplayName)
+    {
+        <div class="daily-register">
+            <label for="display-name">Pick a name for the leaderboard</label>
+            <input id="display-name" type="text" @bind="_displayNameInput" @bind:event="oninput" maxlength="100" />
+            <button type="button" disabled="@string.IsNullOrWhiteSpace(_displayNameInput)" @onclick="RegisterPlayerAsync">
+                Start playing
+            </button>
+        </div>
+    }
+    else if (_submitResult is { Outcome: DailySubmitOutcome.Accepted } accepted)
+    {
+        <div class="result">
+            <h2>Score: @accepted.Response!.Score</h2>
+            <p>
+                Your chain: @accepted.Response.PathLength degree@(accepted.Response.PathLength == 1 ? "" : "s")
+                — today's optimal was @accepted.Response.OptimalLength.
+            </p>
+            <p>The canonical answer:</p>
+            <ol class="result__chain">
+                @foreach (var link in accepted.Response.CanonicalPath)
+                {
+                    <li class="result__link" @key="(link.FromPersonId, link.FilmId, link.ToPersonId)">
+                        <div class="result__person">
+                            @if (TmdbImageUrls.Profile(link.FromProfilePath) is { } fromPhoto)
+                            {
+                                <img src="@fromPhoto" alt="@link.FromPersonName" />
+                            }
+                            <span>@link.FromPersonName</span>
+                        </div>
+                        <div class="result__film">
+                            @if (TmdbImageUrls.Poster(link.FilmPosterPath) is { } posterUrl)
+                            {
+                                <img src="@posterUrl" alt="@link.FilmTitle" />
+                            }
+                            <span>@link.FilmTitle</span>
+                        </div>
+                        <div class="result__person">
+                            @if (TmdbImageUrls.Profile(link.ToProfilePath) is { } toPhoto)
+                            {
+                                <img src="@toPhoto" alt="@link.ToPersonName" />
+                            }
+                            <span>@link.ToPersonName</span>
+                        </div>
+                    </li>
+                }
+            </ol>
+        </div>
+    }
+    else if (_submitResult is not null)
+    {
+        <p class="error-message">@SubmitResultMessage(_submitResult.Outcome)</p>
+        @if (_submitResult.Outcome != DailySubmitOutcome.AlreadySubmitted)
+        {
+            <button type="button" @onclick="() => _submitResult = null">Try again</button>
+        }
+    }
+    else
+    {
+        <div class="daily-chain-builder">
+            <h2>Your chain so far</h2>
+            <ol class="daily-chain">
+                @foreach (var step in _chain)
+                {
+                    <li @key="step.PersonId" class="daily-chain__step">
+                        @if (TmdbImageUrls.Profile(ProfilePathFor(step.PersonId)) is { } photo)
+                        {
+                            <img src="@photo" alt="@NameFor(step.PersonId)" />
+                        }
+                        <span>@NameFor(step.PersonId)</span>
+                    </li>
+                }
+            </ol>
+
+            @if (!IsChainComplete)
+            {
+                <ActorSearchBox @key="_nextActorPickerKey" Label="Next actor" OnPersonSelected="OnNextActorSelected" />
+
+                @if (_filmChoices.Count > 0)
+                {
+                    <div class="daily-film-choices">
+                        <p>Which film connects them?</p>
+                        @foreach (var film in _filmChoices)
+                        {
+                            <button type="button" @key="film.Id" @onclick="() => SelectFilm(film)">@film.Title</button>
+                        }
+                    </div>
+                }
+
+                @if (_chainError is not null)
+                {
+                    <p class="error-message">@_chainError</p>
+                }
+
+                @if (_chain.Count > 1)
+                {
+                    <button type="button" class="daily-chain__undo" @onclick="RemoveLastLink">Undo last pick</button>
+                }
+            }
+            else
+            {
+                <button type="button" disabled="@_isSubmitting" @onclick="SubmitAsync">
+                    @(_isSubmitting ? "Submitting…" : "Submit")
+                </button>
+            }
+
+            @if (_submitError is not null)
+            {
+                <p class="error-message">@_submitError</p>
+            }
+        </div>
+    }
+
+    <LeaderboardPanel Date="_challenge.Date" />
+}
+
+@code {
+    private const int MinDisplayNameLength = 1;
+
+    private DailyChallengeDto? _challenge;
+    private string? _loadError;
+    private readonly Dictionary<int, (string Name, string? ProfilePath)> _personDisplay = new();
+    private List<DailySubmitPathStepDto> _chain = [];
+    private IReadOnlyList<SharedFilmDto> _filmChoices = [];
+    private PersonSearchResultDto? _pendingNextActor;
+    private string? _chainError;
+    private int _nextActorPickerKey;
+
+    private bool _needsDisplayName;
+    private string _displayNameInput = string.Empty;
+    private string? _playerToken;
+
+    private DateTimeOffset _startedAt;
+    private bool _isSubmitting;
+    private string? _submitError;
+    private DailySubmitOutcomeResult? _submitResult;
+
+    private bool IsChainComplete => _challenge is not null && _chain.Count > 0 && _chain[^1].PersonId == _challenge.ToPerson.Id;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _startedAt = DateTimeOffset.UtcNow;
+
+        try
+        {
+            _challenge = await Api.GetTodayChallengeAsync(CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException)
+        {
+            _loadError = "Couldn't load today's challenge — try refreshing in a moment.";
+            return;
+        }
+
+        _personDisplay[_challenge.FromPerson.Id] = (_challenge.FromPerson.Name, _challenge.FromPerson.ProfilePath);
+        _personDisplay[_challenge.ToPerson.Id] = (_challenge.ToPerson.Name, _challenge.ToPerson.ProfilePath);
+        _chain = [new DailySubmitPathStepDto(_challenge.FromPerson.Id, null)];
+
+        _playerToken = await PlayerTokenService.GetTokenAsync();
+        _needsDisplayName = string.IsNullOrWhiteSpace(_playerToken);
+    }
+
+    private string NameFor(int personId) => _personDisplay.TryGetValue(personId, out var info) ? info.Name : $"#{personId}";
+
+    private string? ProfilePathFor(int personId) => _personDisplay.TryGetValue(personId, out var info) ? info.ProfilePath : null;
+
+    private async Task RegisterPlayerAsync()
+    {
+        if (_displayNameInput.Trim().Length < MinDisplayNameLength)
+        {
+            return;
+        }
+
+        try
+        {
+            var response = await Api.CreatePlayerAsync(_displayNameInput.Trim(), CancellationToken.None);
+            await PlayerTokenService.SaveTokenAsync(response.Token);
+            _playerToken = response.Token;
+            _needsDisplayName = false;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException)
+        {
+            _submitError = "Couldn't reach the server — try again in a moment.";
+        }
+    }
+
+    private async Task OnNextActorSelected(PersonSearchResultDto person)
+    {
+        _chainError = null;
+        _filmChoices = [];
+        _pendingNextActor = null;
+
+        var lastPersonId = _chain[^1].PersonId;
+        if (person.Id == lastPersonId)
+        {
+            _chainError = "That's already the last actor in your chain — pick someone new.";
+            _nextActorPickerKey++;
+            return;
+        }
+
+        IReadOnlyList<SharedFilmDto> sharedFilms;
+        try
+        {
+            sharedFilms = await Api.GetSharedFilmsAsync(lastPersonId, person.Id, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException)
+        {
+            _chainError = "Couldn't reach the server — try again in a moment.";
+            _nextActorPickerKey++;
+            return;
+        }
+
+        if (sharedFilms.Count == 0)
+        {
+            _chainError = $"{person.Name} hasn't shared a film with {NameFor(lastPersonId)} — try someone else.";
+            _nextActorPickerKey++;
+            return;
+        }
+
+        _personDisplay[person.Id] = (person.Name, person.ProfilePath);
+
+        if (sharedFilms.Count == 1)
+        {
+            AppendLink(person, sharedFilms[0]);
+            _nextActorPickerKey++;
+            return;
+        }
+
+        // More than one shared film — let the player say which credit they actually mean.
+        _pendingNextActor = person;
+        _filmChoices = sharedFilms;
+    }
+
+    private void SelectFilm(SharedFilmDto film)
+    {
+        if (_pendingNextActor is null)
+        {
+            return;
+        }
+
+        AppendLink(_pendingNextActor, film);
+        _pendingNextActor = null;
+        _filmChoices = [];
+        _nextActorPickerKey++;
+    }
+
+    private void AppendLink(PersonSearchResultDto person, SharedFilmDto film)
+    {
+        _chain[^1] = _chain[^1] with { FilmId = film.Id };
+        _chain.Add(new DailySubmitPathStepDto(person.Id, null));
+    }
+
+    private void RemoveLastLink()
+    {
+        if (_chain.Count <= 1)
+        {
+            return;
+        }
+
+        _chain.RemoveAt(_chain.Count - 1);
+        _chain[^1] = _chain[^1] with { FilmId = null };
+        _chainError = null;
+        _filmChoices = [];
+        _pendingNextActor = null;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_challenge is null || _playerToken is null || !IsChainComplete)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        _submitError = null;
+        try
+        {
+            var durationMs = (int)(DateTimeOffset.UtcNow - _startedAt).TotalMilliseconds;
+            _submitResult = await Api.SubmitDailyAsync(_chain, durationMs, _playerToken, CancellationToken.None);
+
+            if (_submitResult.Outcome == DailySubmitOutcome.Unauthorized)
+            {
+                // The stored token is no longer valid server-side — clear it so the player is
+                // prompted to register again, rather than failing silently every time.
+                _playerToken = null;
+                _needsDisplayName = true;
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _submitError = "Something went wrong reaching the server — try again in a moment.";
+        }
+        finally
+        {
+            _isSubmitting = false;
+        }
+    }
+
+    private static string SubmitResultMessage(DailySubmitOutcome outcome) => outcome switch
+    {
+        DailySubmitOutcome.AlreadySubmitted => "You've already played today's challenge — come back tomorrow!",
+        DailySubmitOutcome.RateLimited => "Hang on a second and try submitting again.",
+        DailySubmitOutcome.Invalid => "That chain didn't check out server-side — try again.",
+        DailySubmitOutcome.Unauthorized => "Your session expired — pick a name to keep playing.",
+        DailySubmitOutcome.ChallengeNotFound => "Today's challenge isn't available right now — try again later.",
+        _ => "Something went wrong.",
+    };
+}

@@ -1,3 +1,4 @@
+using Castlink.Api.Hubs;
 using Castlink.Application.Graph;
 using Castlink.Infrastructure;
 
@@ -10,6 +11,11 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Live leaderboard push (docs/PLAN.md Phase 4). No Redis backplane yet — that's only "required
+// the moment the API runs more than one instance" (see docs/PLAN.md's Redis section), and this is
+// a single-instance deployment. Future multi-instance addition: .AddSignalR().AddStackExchangeRedis(connectionString).
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -43,6 +49,8 @@ app.UseStaticFiles();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapHub<LeaderboardHub>("/hubs/leaderboard");
 
 // Minimal observable surface for Phase 0 — confirms the host starts and DI
 // resolves correctly before Phase 1 adds the database and real endpoints.
