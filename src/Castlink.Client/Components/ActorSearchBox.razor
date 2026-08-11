@@ -1,0 +1,122 @@
+@* Reusable actor typeahead: debounced search-as-you-type, a dropdown of matches, and a
+   "selected" state once one is picked. Used twice on the free-play page (from/to). *@
+@using Castlink.Client.Services
+@using Castlink.Client.Support
+@using Castlink.Shared
+@inject CastlinkApiClient Api
+@implements IDisposable
+
+<div class="actor-search-box">
+    <label class="actor-search-box__label">@Label</label>
+
+    @if (SelectedPerson is not null)
+    {
+        <div class="actor-search-box__selected" @onclick="ClearSelection">
+            @if (TmdbImageUrls.Profile(SelectedPerson.ProfilePath) is { } photoUrl)
+            {
+                <img src="@photoUrl" alt="@SelectedPerson.Name" class="actor-search-box__thumbnail" />
+            }
+            else
+            {
+                <div class="actor-search-box__thumbnail actor-search-box__thumbnail--placeholder"></div>
+            }
+            <span>@SelectedPerson.Name</span>
+            <button type="button" class="actor-search-box__clear" aria-label="Clear selection">&times;</button>
+        </div>
+    }
+    else
+    {
+        <input type="text"
+               class="actor-search-box__input"
+               placeholder="Search for an actor…"
+               value="@_query"
+               @oninput="OnInput"
+               autocomplete="off" />
+
+        @if (_results.Count > 0)
+        {
+            <ul class="actor-search-box__results">
+                @* @key lets Blazor's diffing algorithm match <li>s by a stable id across
+                   re-renders instead of by list position — without it, fast-changing search
+                   results can cause it to reuse the wrong DOM element. *@
+                @foreach (var person in _results)
+                {
+                    @* Capturing `person` here is safe: since C# 5, each foreach iteration gets
+                       its own variable, so this closure can't accidentally end up pointing at
+                       whichever person happened to be last in the list (the classic pre-C#5
+                       foreach-closure bug doesn't apply here). *@
+                    <li @key="person.Id" class="actor-search-box__result" @onclick="() => SelectAsync(person)">
+                        @if (TmdbImageUrls.Profile(person.ProfilePath) is { } photoUrl)
+                        {
+                            <img src="@photoUrl" alt="@person.Name" class="actor-search-box__thumbnail" />
+                        }
+                        else
+                        {
+                            <div class="actor-search-box__thumbnail actor-search-box__thumbnail--placeholder"></div>
+                        }
+                        <span>@person.Name</span>
+                    </li>
+                }
+            </ul>
+        }
+        else if (_isSearching)
+        {
+            <div class="actor-search-box__status">Searching…</div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<PersonSearchResultDto> OnPersonSelected { get; set; }
+
+    public PersonSearchResultDto? SelectedPerson { get; private set; }
+
+    private string _query = string.Empty;
+    private List<PersonSearchResultDto> _results = [];
+    private bool _isSearching;
+
+    // 300ms is a common typeahead debounce window: long enough that a fast typist doesn't fire a
+    // request per keystroke, short enough that results still feel responsive.
+    private readonly Debouncer _debouncer = new(TimeSpan.FromMilliseconds(300));
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        _query = e.Value?.ToString() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(_query))
+        {
+            _results = [];
+            return;
+        }
+
+        // Debouncer.Trigger's callback runs on a timer thread, outside Blazor's rendering
+        // synchronization context. InvokeAsync marshals the work (and the StateHasChanged calls
+        // inside it) back onto that context — skipping this is a common first-Blazor-project bug:
+        // the UI silently stops updating, or throws intermittently, depending what state you touch.
+        _debouncer.Trigger(() => InvokeAsync(async () =>
+        {
+            _isSearching = true;
+            StateHasChanged();
+
+            _results = [.. await Api.SearchPeopleAsync(_query, CancellationToken.None)];
+            _isSearching = false;
+            StateHasChanged();
+        }));
+    }
+
+    private async Task SelectAsync(PersonSearchResultDto person)
+    {
+        SelectedPerson = person;
+        _results = [];
+        _query = string.Empty;
+        await OnPersonSelected.InvokeAsync(person);
+    }
+
+    private void ClearSelection() => SelectedPerson = null;
+
+    public void Dispose() => _debouncer.Dispose();
+}

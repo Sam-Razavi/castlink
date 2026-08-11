@@ -5,12 +5,15 @@
     </div>
 
     <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
         <article class="content px-4">
             @Body
         </article>
+
+        @* TMDB requires this attribution on every page, not just the About page — see
+           docs/PLAN.md section 4 and Phase 3. *@
+        <footer class="app-footer px-4">
+            This product uses the TMDB API but is not endorsed or certified by
+            <a href="https://www.themoviedb.org/" target="_blank" rel="noopener noreferrer">TMDB</a>.
+        </footer>
     </main>
 </div>

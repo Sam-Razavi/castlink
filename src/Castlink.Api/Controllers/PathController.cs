@@ -56,10 +56,13 @@ public sealed class PathController : ControllerBase
             .Select(link => new PathLinkDto(
                 FromPersonId: link.FromPersonId,
                 FromPersonName: DisplayName(people, link.FromPersonId),
+                FromProfilePath: people.GetValueOrDefault(link.FromPersonId)?.ProfilePath,
                 FilmId: link.FilmId,
                 FilmTitle: DisplayTitle(films, link.FilmId),
+                FilmPosterPath: films.GetValueOrDefault(link.FilmId)?.PosterPath,
                 ToPersonId: link.ToPersonId,
-                ToPersonName: DisplayName(people, link.ToPersonId)))
+                ToPersonName: DisplayName(people, link.ToPersonId),
+                ToProfilePath: people.GetValueOrDefault(link.ToPersonId)?.ProfilePath))
             .ToList();
     }
 

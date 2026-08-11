@@ -33,6 +33,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// ASP.NET Core hosted Blazor WASM (docs/PLAN.md Phase 0/3): UseBlazorFrameworkFiles serves the
+// Castlink.Client build output's `_framework/*` files (the WASM runtime, app DLLs, etc.) via the
+// StaticWebAssets mechanism that comes from the ProjectReference — nothing to publish/copy
+// manually. UseStaticFiles then serves everything else under wwwroot (css, favicon, ...).
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
 app.UseAuthorization();
 
 app.MapControllers();
@@ -40,6 +47,11 @@ app.MapControllers();
 // Minimal observable surface for Phase 0 — confirms the host starts and DI
 // resolves correctly before Phase 1 adds the database and real endpoints.
 app.MapGet("/healthz", () => Results.Ok(new { status = "healthy" }));
+
+// SPA fallback: any request that isn't an API route or a real static file falls through to the
+// Blazor app's index.html, which then does its own client-side routing. Must come after
+// MapControllers so /api/* and /healthz are matched first, not swallowed by this.
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

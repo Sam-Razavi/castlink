@@ -1,8 +1,10 @@
 using Castlink.Application.Graph;
 using Castlink.Application.Ingestion;
+using Castlink.Application.People;
 using Castlink.Infrastructure.Configuration;
 using Castlink.Infrastructure.Graph;
 using Castlink.Infrastructure.Ingestion;
+using Castlink.Infrastructure.People;
 using Castlink.Infrastructure.Persistence;
 using Castlink.Infrastructure.Tmdb;
 using Microsoft.EntityFrameworkCore;
@@ -70,6 +72,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPathEnrichmentRepository, EfPathEnrichmentRepository>();
         services.AddSingleton<GraphSnapshotProvider>();
         services.AddSingleton<IPathFinder, BidirectionalPathFinder>();
+
+        services.AddScoped<IPersonSearchRepository, EfPersonSearchRepository>();
 
         return services;
     }

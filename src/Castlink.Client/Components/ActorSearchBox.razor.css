@@ -1,0 +1,94 @@
+/* Blazor CSS isolation: styles in a Component.razor.css file are automatically scoped to just
+   that component at build time (Blazor rewrites each selector with a generated attribute), so
+   these class names can't accidentally collide with anything else on the page. No build step to
+   configure — the .razor.css naming convention is all it takes. */
+
+.actor-search-box {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 240px;
+}
+
+.actor-search-box__label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #444;
+}
+
+.actor-search-box__input {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.actor-search-box__results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    margin: 0.25rem 0 0;
+    padding: 0.25rem;
+    list-style: none;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.actor-search-box__result {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.actor-search-box__result:hover {
+    background: #f0f0f0;
+}
+
+.actor-search-box__selected {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #f7f7f7;
+}
+
+.actor-search-box__clear {
+    margin-left: auto;
+    border: none;
+    background: none;
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    color: #888;
+}
+
+.actor-search-box__thumbnail {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.actor-search-box__thumbnail--placeholder {
+    background: #ddd;
+}
+
+.actor-search-box__status {
+    padding: 0.4rem;
+    color: #888;
+    font-size: 0.9rem;
+}

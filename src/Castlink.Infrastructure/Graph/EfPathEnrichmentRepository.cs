@@ -24,7 +24,7 @@ internal sealed class EfPathEnrichmentRepository : IPathEnrichmentRepository
         return await _dbContext.People
             .AsNoTracking()
             .Where(person => personIds.Contains(person.Id))
-            .Select(person => new PersonSummary(person.Id, person.Name))
+            .Select(person => new PersonSummary(person.Id, person.Name, person.ProfilePath))
             .ToDictionaryAsync(summary => summary.Id, cancellationToken);
     }
 
@@ -39,7 +39,7 @@ internal sealed class EfPathEnrichmentRepository : IPathEnrichmentRepository
         return await _dbContext.Films
             .AsNoTracking()
             .Where(film => filmIds.Contains(film.Id))
-            .Select(film => new FilmSummary(film.Id, film.Title))
+            .Select(film => new FilmSummary(film.Id, film.Title, film.PosterPath))
             .ToDictionaryAsync(summary => summary.Id, cancellationToken);
     }
 }

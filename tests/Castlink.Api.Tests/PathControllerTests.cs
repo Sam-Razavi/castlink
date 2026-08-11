@@ -45,8 +45,8 @@ public sealed class PathControllerTests : IClassFixture<WebApplicationFactory<Pr
     {
         var client = CreateClient(
             edges: [new GraphEdgeRecord(FilmId: 10, PersonId: 1, FilmVoteCount: 500), new GraphEdgeRecord(10, 2, 500)],
-            people: new Dictionary<int, PersonSummary> { [1] = new(1, "Alice"), [2] = new(2, "Bob") },
-            films: new Dictionary<int, FilmSummary> { [10] = new(10, "Some Film") });
+            people: new Dictionary<int, PersonSummary> { [1] = new(1, "Alice", "/alice.jpg"), [2] = new(2, "Bob", null) },
+            films: new Dictionary<int, FilmSummary> { [10] = new(10, "Some Film", "/poster.jpg") });
 
         var response = await client.PostAsJsonAsync("/api/path", new PathRequest(1, 2));
 
@@ -56,8 +56,11 @@ public sealed class PathControllerTests : IClassFixture<WebApplicationFactory<Pr
         Assert.Equal(1, body!.Degrees);
         var link = Assert.Single(body.Links);
         Assert.Equal("Alice", link.FromPersonName);
+        Assert.Equal("/alice.jpg", link.FromProfilePath);
         Assert.Equal("Some Film", link.FilmTitle);
+        Assert.Equal("/poster.jpg", link.FilmPosterPath);
         Assert.Equal("Bob", link.ToPersonName);
+        Assert.Null(link.ToProfilePath);
     }
 
     [Fact]
@@ -65,7 +68,7 @@ public sealed class PathControllerTests : IClassFixture<WebApplicationFactory<Pr
     {
         var client = CreateClient(
             edges: [new GraphEdgeRecord(10, 1, 500), new GraphEdgeRecord(20, 2, 500)],
-            people: new Dictionary<int, PersonSummary> { [1] = new(1, "Alice"), [2] = new(2, "Bob") },
+            people: new Dictionary<int, PersonSummary> { [1] = new(1, "Alice", null), [2] = new(2, "Bob", null) },
             films: new Dictionary<int, FilmSummary>());
 
         var response = await client.PostAsJsonAsync("/api/path", new PathRequest(1, 2));
@@ -78,7 +81,7 @@ public sealed class PathControllerTests : IClassFixture<WebApplicationFactory<Pr
     {
         var client = CreateClient(
             edges: [new GraphEdgeRecord(10, 1, 500)],
-            people: new Dictionary<int, PersonSummary> { [1] = new(1, "Alice") },
+            people: new Dictionary<int, PersonSummary> { [1] = new(1, "Alice", null) },
             films: new Dictionary<int, FilmSummary>());
 
         var response = await client.PostAsJsonAsync("/api/path", new PathRequest(1, 999));
@@ -91,7 +94,7 @@ public sealed class PathControllerTests : IClassFixture<WebApplicationFactory<Pr
     {
         var client = CreateClient(
             edges: [new GraphEdgeRecord(10, 1, 500)],
-            people: new Dictionary<int, PersonSummary> { [1] = new(1, "Alice") },
+            people: new Dictionary<int, PersonSummary> { [1] = new(1, "Alice", null) },
             films: new Dictionary<int, FilmSummary>());
 
         var response = await client.PostAsJsonAsync("/api/path", new PathRequest(1, 1));

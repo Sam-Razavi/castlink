@@ -1,10 +1,121 @@
 @page "/"
+@using Castlink.Client.Components
+@using Castlink.Client.Services
+@using Castlink.Client.Support
+@using Castlink.Shared
+@inject CastlinkApiClient Api
 
-<PageTitle>castlink</PageTitle>
+<PageTitle>castlink — free play</PageTitle>
 
 <h1>castlink</h1>
+<p class="tagline">Find the shortest chain of shared films connecting two actors.</p>
 
-<p>
-    A six-degrees-of-separation game for movies. This is Phase 0 — the real actor-search and
-    path-finding UI lands in Phase 3. See <code>docs/PLAN.md</code> for the roadmap.
-</p>
+<div class="picker-row">
+    <ActorSearchBox Label="From" OnPersonSelected="OnFromSelected" />
+    <span class="picker-row__arrow" aria-hidden="true">→</span>
+    <ActorSearchBox Label="To" OnPersonSelected="OnToSelected" />
+</div>
+
+@* @onclick here runs inside Blazor's own synchronization context (unlike the debounced search
+   callback in ActorSearchBox), so no manual InvokeAsync/StateHasChanged is needed — Blazor
+   re-renders automatically once the awaited Task completes. *@
+<button type="button" class="find-button" disabled="@(!CanSearch || _isSearching)" @onclick="FindConnectionAsync">
+    @(_isSearching ? "Searching…" : "Find Connection")
+</button>
+
+@if (_errorMessage is not null)
+{
+    <p class="error-message">@_errorMessage</p>
+}
+
+@if (_result is not null)
+{
+    <div class="result">
+        <h2>@_result.Degrees degree@(_result.Degrees == 1 ? "" : "s") of separation</h2>
+
+        @if (_result.Links.Count == 0)
+        {
+            <p>That's the same actor on both ends.</p>
+        }
+        else
+        {
+            <ol class="result__chain">
+                @foreach (var link in _result.Links)
+                {
+                    <li class="result__link" @key="(link.FromPersonId, link.FilmId, link.ToPersonId)">
+                        <div class="result__person">
+                            @if (TmdbImageUrls.Profile(link.FromProfilePath) is { } fromPhoto)
+                            {
+                                <img src="@fromPhoto" alt="@link.FromPersonName" />
+                            }
+                            <span>@link.FromPersonName</span>
+                        </div>
+                        <div class="result__film">
+                            @if (TmdbImageUrls.Poster(link.FilmPosterPath) is { } posterUrl)
+                            {
+                                <img src="@posterUrl" alt="@link.FilmTitle" />
+                            }
+                            <span>@link.FilmTitle</span>
+                        </div>
+                        <div class="result__person">
+                            @if (TmdbImageUrls.Profile(link.ToProfilePath) is { } toPhoto)
+                            {
+                                <img src="@toPhoto" alt="@link.ToPersonName" />
+                            }
+                            <span>@link.ToPersonName</span>
+                        </div>
+                    </li>
+                }
+            </ol>
+        }
+
+        <p class="result__timing">Computed in @_result.ComputedInMs.ToString("F1") ms</p>
+    </div>
+}
+else if (_searched && _errorMessage is null)
+{
+    <p>No connection found within 6 degrees.</p>
+}
+
+@code {
+    private PersonSearchResultDto? _fromPerson;
+    private PersonSearchResultDto? _toPerson;
+    private PathResponse? _result;
+    private string? _errorMessage;
+    private bool _isSearching;
+    private bool _searched;
+
+    private bool CanSearch => _fromPerson is not null && _toPerson is not null;
+
+    private void OnFromSelected(PersonSearchResultDto person) => _fromPerson = person;
+
+    private void OnToSelected(PersonSearchResultDto person) => _toPerson = person;
+
+    private async Task FindConnectionAsync()
+    {
+        if (_fromPerson is null || _toPerson is null)
+        {
+            return;
+        }
+
+        _isSearching = true;
+        _errorMessage = null;
+        _result = null;
+        _searched = false;
+
+        try
+        {
+            var outcome = await Api.FindPathAsync(_fromPerson.Id, _toPerson.Id, CancellationToken.None);
+            _result = outcome.Response;
+        }
+        catch (HttpRequestException)
+        {
+            _errorMessage = "Something went wrong reaching the server — try again in a moment.";
+        }
+        finally
+        {
+            _isSearching = false;
+            _searched = true;
+        }
+    }
+}

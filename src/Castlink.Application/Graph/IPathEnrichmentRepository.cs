@@ -1,8 +1,8 @@
 namespace Castlink.Application.Graph;
 
-public sealed record PersonSummary(int Id, string Name);
+public sealed record PersonSummary(int Id, string Name, string? ProfilePath);
 
-public sealed record FilmSummary(int Id, string Title);
+public sealed record FilmSummary(int Id, string Title, string? PosterPath);
 
 /// <summary>
 /// Looks up display names/titles for the handful of ids in a found path. Deliberately separate
